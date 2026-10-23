@@ -1,0 +1,20 @@
+@import url('../styles.css');
+.case-nav{padding:24px 0;display:flex;justify-content:space-between;align-items:center;gap:20px}
+.case-nav>a{color:var(--mint);font-weight:800;font-size:14px}
+.case-hero{padding:54px 0 34px;max-width:900px}
+.case-hero h1{font-size:clamp(42px,6vw,75px);line-height:1.12;letter-spacing:-.055em;margin:12px 0 22px}
+.case-hero p:not(.eyebrow){color:var(--muted);font-size:18px;line-height:1.7;max-width:760px}
+.case-tags{display:flex;gap:10px;flex-wrap:wrap;margin:26px 0}
+.case-tags span{border:1px solid #395068;padding:6px 12px;border-radius:100px;font-size:12px;color:#cce3ed}
+.case-figure{margin:15px 0 34px;border:1px solid #30435a;border-radius:20px;overflow:hidden;background:#162338;box-shadow:0 20px 70px #03060988}
+.case-figure img{display:block;width:100%;height:auto;max-height:600px;object-fit:contain}
+.case-figure figcaption{color:var(--muted);font-size:12px;padding:10px 18px;border-top:1px solid #30435a}
+.case-content{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding-bottom:64px}
+.case-panel{padding:30px;border:1px solid #30435a;border-radius:16px;background:var(--surface2)}
+.case-panel h2{font-size:20px;margin:0 0 12px;color:#fff}
+.case-panel p,.case-panel li{color:var(--muted);font-size:14px;line-height:1.75}
+.case-panel ul{padding-left:21px;margin:0}.case-panel li+li{margin-top:8px}
+.case-panel.wide{grid-column:1 / -1}
+.case-actions{display:flex;gap:12px;flex-wrap:wrap;margin:23px 0 15px}
+.case-note{color:#9fb4c8;font-size:13px}
+@media(max-width:700px){.case-content{grid-template-columns:1fr}.case-panel.wide{grid-column:auto}.case-hero{padding-top:24px}.case-panel{padding:24px}.case-nav{flex-wrap:wrap}}

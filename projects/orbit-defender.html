@@ -1,0 +1,1150 @@
+<!--Create a complete browser-based space shooter game called "Orbit Defender" using only HTML, CSS, and vanilla JavaScript. Do not use external libraries, images, CSS files, JavaScript files, sound files, frameworks, npm packages, or CDNs. Use an HTML5 canvas approximately 840 pixels wide and 560 pixels high. The game must run by simply opening task2.html in Firefox or Chrome.-->
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Orbit Defender</title>
+        <!--Improve the page design. Use a dark futuristic space theme with navy and black colors. Add a heading called "ORBIT DEFENDER" with the word DEFENDER highlighted in mint green. Above the title add "ARCADE 01 / DEEP SPACE PATROL". Under the title display "One ship. Endless waves. How long can you hold the line?" Keep the game centered on the page.-->
+        <!--Polish the visuals without using external assets. Use a dark navy gradient for the canvas, mint-green player bullets, red enemy bullets, pink/red enemies, gold armored enemies and boss details. Use small particle explosions and subtle glowing or high-contrast effects while keeping the game readable.-->
+        <!--Make the entire page responsive. On wide screens keep the canvas on the left and information panels on the right. On medium screens move the panels into multiple columns below the game. On small mobile screens stack everything vertically and reduce heading and HUD sizes. Keep the canvas aspect ratio approximately 3:2.-->
+        <!--Improve accessibility. Give important buttons and the canvas appropriate aria labels. Use aria-live for important game announcements. Add strong visible keyboard focus outlines. Respect prefers-reduced-motion. Since firing is automatic, do not intercept Space as a game control.-->
+        <style>
+            :root { color-scheme: dark; }
+            * { box-sizing: border-box; }
+            body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 70% 10%, #10213b 0, #07111f 32%, #02060d 70%, #000 100%); color: #fff; font-family: Arial, Helvetica, sans-serif; }
+            button, select { font: inherit; }
+            button:focus-visible, select:focus-visible, canvas:focus-visible { outline: 3px solid #fff59a; outline-offset: 3px; }
+            .page { width: min(1240px, 96vw); margin: 0 auto; padding: 18px 0 28px; }
+            .page-header { text-align: center; margin-bottom: 16px; }
+            .eyebrow { color: #65f2d0; font-size: 12px; letter-spacing: 3px; font-weight: 700; }
+            h1 { margin: 7px 0 4px; font-size: clamp(34px, 6vw, 58px); letter-spacing: 1px; }
+            h1 span { color: #65f2d0; }
+            .subtitle { margin: 0 0 12px; color: #b8c7d9; }
+            .header-actions { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+            .audio-status { min-height: 18px; color: #9fb5cb; font-size: 12px; margin-top: 6px; }
+            .layout { display: grid; grid-template-columns: minmax(0, 840px) 300px; gap: 18px; align-items: start; justify-content: center; }
+            .game-section { min-width: 0; }
+            .hud { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid #29435d; border-bottom: none; background: rgba(11, 24, 42, .96); }
+            .hud-box { padding: 9px 6px; border-right: 1px solid #29435d; text-align: center; }
+            .hud-box:last-child { border-right: 0; }
+            .hud-label { display: block; color: #8ea5bb; font-size: 11px; letter-spacing: 1.4px; }
+            .hud-value { display: block; color: #65f2d0; font-size: clamp(17px, 3vw, 25px); font-weight: 800; font-variant-numeric: tabular-nums; }
+            .arena { position: relative; width: 100%; aspect-ratio: 3 / 2; }
+            canvas { width: 100%; height: 100%; display: block; background: #020814; border: 2px solid #65f2d0; box-shadow: 0 0 20px rgba(101,242,208,.22); touch-action: none; }
+            .overlay { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; background: rgba(2, 8, 20, .93); }
+            .overlay.hidden { display: none; }
+            .overlay .kicker { color: #65f2d0; letter-spacing: 2px; font-size: 12px; font-weight: 800; }
+            .overlay h2 { margin: 8px 0; font-size: clamp(30px, 5vw, 46px); }
+            .overlay p { max-width: 520px; color: #c0cfdd; line-height: 1.5; }
+            .overlay-stats { color: #fff; line-height: 1.7; margin-bottom: 12px; }
+            .overlay-buttons { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+            button { border: 1px solid #65f2d0; background: #13243b; color: #fff; border-radius: 6px; padding: 9px 14px; cursor: pointer; }
+            button:hover:not(:disabled) { background: #1c3658; }
+            button.primary { background: #65f2d0; color: #05100d; font-weight: 800; }
+            button.danger { border-color: #ff6e8a; }
+            button:disabled { opacity: .45; cursor: default; }
+            .controls-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px; border: 1px solid #29435d; background: #0b182a; }
+            #statusMessage { color: #dce9f4; min-height: 20px; text-align: left; }
+            .controls-bar .buttons { display: flex; gap: 8px; }
+            .touch-controls { display: flex; justify-content: center; gap: 14px; padding: 10px; }
+            .touch-controls button { min-width: 120px; min-height: 46px; font-size: 18px; user-select: none; touch-action: none; }
+            .info-column { display: grid; gap: 12px; }
+            .panel { background: rgba(11, 24, 42, .96); border: 1px solid #29435d; border-radius: 8px; padding: 14px; }
+            .panel h3 { margin: 0 0 10px; color: #65f2d0; font-size: 16px; }
+            .panel p, .panel li { color: #b8c7d9; font-size: 13px; line-height: 1.45; }
+            .panel ul { margin: 8px 0 0; padding-left: 18px; }
+            .panel label { display: block; margin-bottom: 6px; color: #dbe7f1; font-size: 13px; }
+            select { width: 100%; border: 1px solid #65f2d0; background: #06111f; color: white; border-radius: 6px; padding: 9px; }
+            #difficultyDescription { margin-bottom: 0; font-size: 12px; }
+            .upgrade-line { display: flex; justify-content: space-between; gap: 10px; border-top: 1px solid #24394f; padding: 7px 0; }
+            .upgrade-line:first-of-type { border-top: 0; }
+            .upgrade-symbol { font-weight: 800; }
+            #activeUpgrades { color: #fff; font-weight: 700; }
+            @media (max-width: 1040px) { .layout { grid-template-columns: 1fr; } .info-column { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+            @media (max-width: 640px) { .page { width: 100%; padding: 10px; } .info-column { grid-template-columns: 1fr; } .controls-bar { align-items: stretch; flex-direction: column; } .controls-bar .buttons { justify-content: center; } .hud-box { padding: 7px 3px; } .touch-controls button { min-width: 42%; } }
+            @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+        </style>
+    </head>
+    <body>
+        <div class="page">
+            <header class="page-header">
+                <div class="eyebrow">ARCADE 01 / DEEP SPACE PATROL</div>
+                <h1>ORBIT <span>DEFENDER</span></h1>
+                <p class="subtitle">One ship. Endless waves. How long can you hold the line?</p>
+                <!--Add a "Sound: on / Sound: off" button near the game title. Allow the player to mute and enable all generated sound effects. Only create or resume the AudioContext after a user action so Firefox and Chrome autoplay restrictions do not cause errors.-->
+                <!--Add a "Test sound" button next to the Sound button. When clicked, enable audio if necessary and play three short test notes. Display a small audio status message explaining whether sound started successfully. Audio failure must never freeze or stop the game.-->
+                <div class="header-actions">
+                    <button id="soundButton" type="button" aria-label="Toggle sound">Sound: on</button>
+                    <button id="testSoundButton" type="button" aria-label="Test game sound">Test sound</button>
+                </div>
+                <div id="audioStatus" class="audio-status" aria-live="polite"></div>
+            </header>
+
+            <!--Create a two-column layout. Put the game canvas on the left and game information panels on the right. Above the canvas create a HUD containing Score, Best, Wave, and Hull. Below the canvas add a status message, Pause button, and Restart button. Keep the design responsive so the side panels move below the game on smaller screens.-->
+            <div class="layout">
+                <section class="game-section">
+                    <div class="hud" aria-label="Game heads up display">
+                        <div class="hud-box"><span class="hud-label">SCORE</span><span id="scoreDisplay" class="hud-value">00000</span></div>
+                        <div class="hud-box"><span class="hud-label">BEST</span><span id="bestDisplay" class="hud-value">00000</span></div>
+                        <div class="hud-box"><span class="hud-label">WAVE</span><span id="waveDisplay" class="hud-value">01</span></div>
+                        <div class="hud-box"><span class="hud-label">HULL</span><span id="hullDisplay" class="hud-value">3 / 3</span></div>
+                    </div>
+
+                    <div class="arena">
+                        <canvas id="gameCanvas" width="840" height="560" tabindex="0" aria-label="Orbit Defender game canvas"></canvas>
+
+                        <!--Add a start overlay over the canvas. Display "PATROL AUTHORIZATION GRANTED", the title "Hold the line.", and the message "Clear enemy waves, collect upgrades and face a boss every fifth wave. Choose your difficulty, then launch." Add a button called "Launch mission →". The game should not start until this button is clicked.-->
+                        <div id="startOverlay" class="overlay">
+                            <div class="kicker">PATROL AUTHORIZATION GRANTED</div>
+                            <h2>Hold the line.</h2>
+                            <p>Clear enemy waves, collect upgrades and face a boss every fifth wave. Choose your difficulty, then launch.</p>
+                            <button id="launchButton" class="primary" type="button">Launch mission →</button>
+                        </div>
+
+                        <!--Add Pause and Resume functionality. Clicking the Pause button or pressing P or Escape should pause the game. While paused, stop movement, bullets, enemies, power-up timers and gameplay updates. Display an overlay saying "MISSION PAUSED" with a Resume Mission button. Pressing P or Escape again should resume.-->
+                        <div id="pauseOverlay" class="overlay hidden" aria-hidden="true">
+                            <div class="kicker">DEEP SPACE PATROL</div>
+                            <h2>MISSION PAUSED</h2>
+                            <p>Your mission is frozen exactly where you left it.</p>
+                            <button id="resumeButton" class="primary" type="button">Resume Mission</button>
+                        </div>
+
+                        <!--When the player's hull reaches zero, stop gameplay and display a game-over overlay. Use the title "Mission complete." Display the player's final score, wave reached and number of enemies destroyed. Add a "Fly again →" button and a "Return to menu" button.-->
+                        <div id="gameOverOverlay" class="overlay hidden" aria-hidden="true">
+                            <div class="kicker">PATROL REPORT</div>
+                            <h2>Mission complete.</h2>
+                            <div id="finalStats" class="overlay-stats"></div>
+                            <div class="overlay-buttons">
+                                <button id="flyAgainButton" class="primary" type="button">Fly again →</button>
+                                <button id="returnMenuButton" type="button">Return to menu</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!--Make the Restart button immediately start a fresh game using the currently selected difficulty. Reset score, wave, enemies, bullets, power-ups and player hull. Do not create multiple requestAnimationFrame game loops when restarting.-->
+                    <div class="controls-bar">
+                        <span id="statusMessage" aria-live="polite">Awaiting Launch</span>
+                        <div class="buttons">
+                            <button id="pauseButton" type="button" disabled>Pause</button>
+                            <button id="restartButton" class="danger" type="button" disabled>Restart</button>
+                        </div>
+                    </div>
+
+                    <!--Add large Left and Right buttons underneath the canvas for touch-screen devices. Holding the left button should continuously move left and holding the right button should continuously move right. The weapon fires automatically, so do not add a Fire button.-->
+                    <div class="touch-controls" aria-label="Touch movement controls">
+                        <button id="leftButton" type="button" aria-label="Move left">◀ Left</button>
+                        <button id="rightButton" type="button" aria-label="Move right">Right ▶</button>
+                    </div>
+                </section>
+
+                <!--Create four information panels beside the game. Panel 1 should be Flight Setup with the difficulty selector. Panel 2 should be Flight Controls showing Left/Right or A/D for movement, Weapon: Automatic, and P/Escape for pause. Panel 3 should be Field Upgrades showing S Shield, T Triple Shot, and + Repair. Panel 4 should be Mission Brief explaining that all enemies must be destroyed to advance and escaped enemies cost one hull point.-->
+                <aside class="info-column">
+                    <!--Add a difficulty dropdown in a Flight Setup panel with three options: Cadet Easy, Pilot Normal, and Ace Hard. Easy should have 5 hull points with slower enemies and slower enemy bullets. Normal should have 3 hull points with balanced enemy and bullet speeds. Hard should have 2 hull points with faster enemies and faster enemy bullets. Store these values in a JavaScript SETTINGS object and apply the selected difficulty only when Launch Mission is clicked. Do not start the game automatically and do not remove any existing prompts or features.-->
+                    <section class="panel">
+                        <h3>Flight Setup</h3>
+                        <label for="difficultySelect">Difficulty</label>
+                        <select id="difficultySelect">
+                            <option value="easy">Cadet · Easy</option>
+                            <option value="normal" selected>Pilot · Normal</option>
+                            <option value="hard">Ace · Hard</option>
+                        </select>
+                        <p id="difficultyDescription">3 hull points. Balanced enemy and enemy-bullet speeds.</p>
+                    </section>
+
+                    <section class="panel">
+                        <h3>Flight Controls</h3>
+                        <ul>
+                            <li>Move: Arrow Left/Right or A/D</li>
+                            <li>Weapon: Automatic</li>
+                            <li>Pause: P or Escape</li>
+                            <li>Drag on the canvas to move</li>
+                        </ul>
+                    </section>
+
+                    <!--In the Field Upgrades panel, display the active Shield and Triple Shot timers. For example show "Shield 5s" or "Triple shot 7s". If no temporary upgrade is active, display "No active upgrades". Update the text continuously while the game is running.-->
+                    <section class="panel">
+                        <h3>Field Upgrades</h3>
+                        <div class="upgrade-line"><span><span class="upgrade-symbol">S</span> Shield</span><span>6s</span></div>
+                        <div class="upgrade-line"><span><span class="upgrade-symbol">T</span> Triple Shot</span><span>8s</span></div>
+                        <div class="upgrade-line"><span><span class="upgrade-symbol">+</span> Repair</span><span>+1 Hull</span></div>
+                        <p id="activeUpgrades">No active upgrades</p>
+                    </section>
+
+                    <section class="panel">
+                        <h3>Mission Brief</h3>
+                        <p>Destroy every enemy in the wave to advance. Escaped enemies cost one hull point. Every fifth wave is a boss encounter.</p>
+                    </section>
+                </aside>
+            </div>
+        </div>
+
+        <script>
+            'use strict';
+
+            // ---------- DOM ----------
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            const bestDisplay = document.getElementById('bestDisplay');
+            const waveDisplay = document.getElementById('waveDisplay');
+            const hullDisplay = document.getElementById('hullDisplay');
+            const statusMessage = document.getElementById('statusMessage');
+            const difficultySelect = document.getElementById('difficultySelect');
+            const difficultyDescription = document.getElementById('difficultyDescription');
+            const activeUpgrades = document.getElementById('activeUpgrades');
+            const startOverlay = document.getElementById('startOverlay');
+            const pauseOverlay = document.getElementById('pauseOverlay');
+            const gameOverOverlay = document.getElementById('gameOverOverlay');
+            const finalStats = document.getElementById('finalStats');
+            const launchButton = document.getElementById('launchButton');
+            const pauseButton = document.getElementById('pauseButton');
+            const resumeButton = document.getElementById('resumeButton');
+            const restartButton = document.getElementById('restartButton');
+            const flyAgainButton = document.getElementById('flyAgainButton');
+            const returnMenuButton = document.getElementById('returnMenuButton');
+            const soundButton = document.getElementById('soundButton');
+            const testSoundButton = document.getElementById('testSoundButton');
+            const audioStatus = document.getElementById('audioStatus');
+            const leftButton = document.getElementById('leftButton');
+            const rightButton = document.getElementById('rightButton');
+
+
+        </script>
+
+        <!--Add a difficulty dropdown in a Flight Setup panel with three options: Cadet Easy, Pilot Normal, and Ace Hard. Easy should have 5 hull points with slower enemies and slower enemy bullets. Normal should have 3 hull points with balanced enemy and bullet speeds. Hard should have 2 hull points with faster enemies and faster enemy bullets. Store these values in a JavaScript SETTINGS object and apply the selected difficulty only when Launch Mission is clicked. Do not start the game automatically and do not remove any existing prompts or features.-->
+        <!--
+            COPILOT QUESTION:
+
+            why is this prompt not working?
+
+
+            COPILOT ANSWER:
+
+            The prompt you provided is asking for a specific feature to be added
+            to the existing game code, but it seems that the implementation of
+            the difficulty dropdown and the SETTINGS object has not been included
+            in the code you shared.
+
+            To implement the difficulty dropdown and the SETTINGS object in your
+            "Orbit Defender" game, you need to add a dropdown menu in the HTML
+            for selecting the difficulty level, and then modify the JavaScript
+            to apply the selected settings when the "Launch Mission" button is
+            clicked.
+
+            Copilot suggested adding:
+
+            1. A difficulty dropdown inside the start overlay.
+
+            2. A SETTINGS object containing Easy, Normal and Hard values.
+
+            3. Code inside the Launch Mission button that applies the selected
+            difficulty.
+
+        -->
+        <script>
+            'use strict';
+
+            // ---------- Settings ----------
+            const SETTINGS = {
+                easy: { name: 'Cadet', hull: 5, enemySpeed: 0.72, enemyBulletSpeed: 165, fireDelayScale: 1.45, description: '5 hull points. Slower enemies and slower enemy bullets.' },
+                normal: { name: 'Pilot', hull: 3, enemySpeed: 1.0, enemyBulletSpeed: 220, fireDelayScale: 1.0, description: '3 hull points. Balanced enemy and enemy-bullet speeds.' },
+                hard: { name: 'Ace', hull: 2, enemySpeed: 1.35, enemyBulletSpeed: 285, fireDelayScale: 0.72, description: '2 hull points. Faster enemies and faster enemy bullets.' }
+            };
+            let currentDifficulty = 'normal';
+            let currentSettings = SETTINGS.normal;
+
+
+        </script>
+
+        <!--Add a best-score system using localStorage. Save a separate best score for Easy, Normal and Hard difficulty. Update the best score whenever the current score becomes higher. Display the current difficulty's best score in the HUD. If localStorage is unavailable, allow the game to continue and keep the best score for the current browser session.-->
+        <script>
+            'use strict';
+
+            // ---------- Persistent score ----------
+            const sessionBest = { easy: 0, normal: 0, hard: 0 };
+            function storageKey(diff) { return 'orbit_defender_best_' + diff; }
+            function loadBest(diff) {
+                try {
+                    const value = Number(localStorage.getItem(storageKey(diff)) || 0);
+                    if (Number.isFinite(value)) sessionBest[diff] = Math.max(sessionBest[diff], value);
+                } catch (_) {}
+                return sessionBest[diff] || 0;
+            }
+            function saveBest(diff, value) {
+                sessionBest[diff] = Math.max(sessionBest[diff] || 0, value);
+                try { localStorage.setItem(storageKey(diff), String(sessionBest[diff])); } catch (_) {}
+            }
+
+            // ---------- Game state ----------
+            let player = null;
+            let bullets = [];
+            let enemies = [];
+            let enemyBullets = [];
+            let particles = [];
+            let drops = [];
+            let stars = [];
+            let boss = null;
+            let score = 0;
+            let bestScore = loadBest('normal');
+            let wave = 1;
+            let hull = 3;
+            let maxHull = 3;
+            let kills = 0;
+            let dropCounter = 0;
+            let gameStarted = false;
+            let gameRunning = false;
+            let gamePaused = false;
+            let gameOver = false;
+            let loopStarted = false;
+            let lastTime = 0;
+            let gameTime = 0;
+            let shootingTimer = 0;
+            let enemyShootingTimer = 0;
+            let bossShootingTimer = 0;
+            let invincible = false;
+            let invincibilityTimer = 0;
+            const invincibilityDuration = 1.2;
+            let shieldTime = 0;
+            let tripleShotTime = 0;
+            let waveIntroTimer = 0;
+            let waveTransitionTimer = 0;
+            let waveActive = false;
+            let waveCleared = false;
+            let statusTimeout = null;
+            let pointerDragging = false;
+            const keys = { left: false, right: false };
+            const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+
+        </script>
+
+        <!--Add simple sound effects using the Web Audio API. Do not use external audio files. Create synthesized sounds for launching the mission, player shooting, enemy destruction, boss destruction, player damage, collecting a power-up, and game over. Gameplay must continue normally if audio is unavailable.-->
+        <script>
+            'use strict';
+
+            // ---------- Audio ----------
+            let audioCtx = null;
+            let soundEnabled = true;
+            async function ensureAudio() {
+                try {
+                    if (!audioCtx) {
+                        const AC = window.AudioContext || window.webkitAudioContext;
+                        if (!AC) throw new Error('Web Audio unavailable');
+                        audioCtx = new AC();
+                    }
+                    if (audioCtx.state === 'suspended') await audioCtx.resume();
+                    return true;
+                } catch (err) {
+                    audioStatus.textContent = 'Audio unavailable. Game will continue without sound.';
+                    return false;
+                }
+            }
+            function tone(freq, duration = 0.07, type = 'sine', volume = 0.035, when = 0) {
+                if (!soundEnabled || !audioCtx) return;
+                try {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    const start = audioCtx.currentTime + when;
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, start);
+                    gain.gain.setValueAtTime(volume, start);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+                    osc.connect(gain).connect(audioCtx.destination);
+                    osc.start(start);
+                    osc.stop(start + duration);
+                } catch (_) {}
+            }
+            function sound(name) {
+                if (!soundEnabled || !audioCtx) return;
+                if (name === 'launch') { tone(220, .08, 'triangle', .04); tone(440, .12, 'triangle', .04, .08); }
+                else if (name === 'shoot') tone(650, .035, 'square', .018);
+                else if (name === 'destroy') { tone(180, .06, 'sawtooth', .035); tone(110, .08, 'sawtooth', .025, .04); }
+                else if (name === 'boss') { tone(100, .18, 'sawtooth', .05); tone(70, .25, 'square', .04, .08); }
+                else if (name === 'damage') tone(85, .17, 'square', .05);
+                else if (name === 'pickup') { tone(520, .06, 'triangle', .035); tone(780, .08, 'triangle', .035, .05); }
+                else if (name === 'gameover') { tone(180, .15, 'sawtooth', .04); tone(120, .22, 'sawtooth', .04, .14); }
+            }
+
+
+        </script>
+
+        <!--Review all collision detection. Use a reusable overlaps(a,b) function for rectangle-based collisions. Check player bullets against enemies, enemy bullets against the player, normal enemies against the player, escaped enemies, and falling power-ups against the player. Make sure objects marked as destroyed are removed safely after collision loops so array elements are not accidentally skipped.-->
+        <!--Format Score and Best as five-digit values with leading zeros, for example 00150. Format Wave as two digits, for example 01, 02, 05 and 10. Display Hull as current hull followed by maximum hull, for example "3 / 3".-->
+        <!--Add temporary status messages inside the game near the bottom. Display messages such as "Shield online · 6 seconds", "Triple shot · 8 seconds", "Hull repaired · +1", "Hull hit · Keep moving", "Enemy escaped · Hull -1", and "Wave cleared". Automatically hide temporary messages after about 2 seconds.-->
+        <script>
+            'use strict';
+
+            // ---------- Utility ----------
+            function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+            function overlaps(a, b) {
+                return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+            }
+            function formatScore(value) { return String(Math.max(0, Math.floor(value))).padStart(5, '0'); }
+            function updateHUD() {
+                scoreDisplay.textContent = formatScore(score);
+                bestDisplay.textContent = formatScore(bestScore);
+                waveDisplay.textContent = String(wave).padStart(2, '0');
+                hullDisplay.textContent = hull + ' / ' + maxHull;
+            }
+            function showStatus(message, duration = 2000) {
+                statusMessage.textContent = message;
+                if (statusTimeout) clearTimeout(statusTimeout);
+                if (duration > 0) {
+                    statusTimeout = setTimeout(() => {
+                        if (gameStarted && !gameOver && !gamePaused) statusMessage.textContent = currentSettings.name + ' Patrol Running';
+                    }, duration);
+                }
+            }
+            function updateUpgradePanel() {
+                const parts = [];
+                if (shieldTime > 0) parts.push('Shield ' + Math.ceil(shieldTime) + 's');
+                if (tripleShotTime > 0) parts.push('Triple shot ' + Math.ceil(tripleShotTime) + 's');
+                activeUpgrades.textContent = parts.length ? parts.join(' · ') : 'No active upgrades';
+            }
+            function updateBest() {
+                if (score > bestScore) {
+                    bestScore = score;
+                    saveBest(currentDifficulty, bestScore);
+                    updateHUD();
+                }
+            }
+
+
+        </script>
+
+        <!--Create an animated space background inside the canvas. Add about 75 small stars with random positions, sizes and speeds. Make the stars slowly move downward to create the appearance that the spaceship is travelling through space. Also add subtle circular orbital lines in the upper-right area of the canvas.-->
+        <script>
+            'use strict';
+
+            // ---------- Stars ----------
+            function initStars() {
+                stars = [];
+                for (let i = 0; i < 75; i++) {
+                    stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 1.8 + .4, speed: Math.random() * 20 + 12 });
+                }
+            }
+            function updateStars(dt) {
+                for (const star of stars) {
+                    star.y += star.speed * dt;
+                    if (star.y > canvas.height + 2) { star.y = -2; star.x = Math.random() * canvas.width; }
+                }
+            }
+
+
+        </script>
+
+        <!--IMPORTANT RULE FOR ALL FOLLOWING CHANGES — Modify the existing task2.html code directly. Do not create another gameLoop(), update(), draw(), drawPlayer(), drawEnemies(), updateEnemies(), updateEnemyShooting(), or duplicate event listener if one already exists. Edit the existing active functions instead. Do not create unnecessary new script blocks. Do not remove any existing prompt comments. Preserve Launch Mission, difficulty settings, automatic player shooting, enemy shooting, pause, restart, HUD, stars, movement, collision detection, and the 1.2-second player invincibility system.-->
+        <script>
+            'use strict';
+
+            // ---------- Initialization ----------
+            function resetRun() {
+                player = { x: canvas.width / 2 - 22, y: canvas.height - 72, width: 44, height: 48, speed: 330 };
+                bullets = [];
+                enemies = [];
+                enemyBullets = [];
+                particles = [];
+                drops = [];
+                boss = null;
+                score = 0;
+                wave = 1;
+                kills = 0;
+                dropCounter = 0;
+                maxHull = currentSettings.hull;
+                hull = maxHull;
+                shootingTimer = 0;
+                enemyShootingTimer = 0;
+                bossShootingTimer = 0;
+                invincible = false;
+                invincibilityTimer = 0;
+                shieldTime = 0;
+                tripleShotTime = 0;
+                waveIntroTimer = 0;
+                waveTransitionTimer = 0;
+                waveActive = false;
+                waveCleared = false;
+                gameOver = false;
+                gamePaused = false;
+                gameRunning = true;
+                keys.left = keys.right = false;
+                initStars();
+                bestScore = loadBest(currentDifficulty);
+                updateHUD();
+                updateUpgradePanel();
+                beginWave();
+                pauseButton.disabled = false;
+                restartButton.disabled = false;
+                pauseButton.textContent = 'Pause';
+                showStatus(currentSettings.name + ' Patrol Running', 0);
+            }
+
+
+        </script>
+
+        <!--Add smooth player movement using the Left Arrow and Right Arrow keys or A and D. Track keydown and keyup states instead of moving only once for each key press. The player should continue moving while a key is held and stop when the key is released. Keep the ship inside the canvas.-->
+        <!--Add a player shooting system. When the player fires, create a mint-green laser bullet above the spaceship. Store player bullets in an array. Move them upward every frame and remove them after they leave the top of the screen.-->
+        <!--Change the player's shooting system so the spaceship fires automatically while the game is running. The player should not need to press Space. Fire approximately once every 300 milliseconds using a shooting timer. Automatic firing must stop while the game is paused, before Launch Mission is clicked, and after Game Over. Remove Space as a firing requirement but keep Left/Right and A/D movement controls. Do not create another game loop or remove any existing prompts-->
+        <script>
+            'use strict';
+
+            // ---------- Player and shooting ----------
+            function updatePlayer(dt) {
+                if (!player) return;
+                const dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+                player.x += dir * player.speed * dt;
+                player.x = clamp(player.x, 0, canvas.width - player.width);
+            }
+            function firePlayer() {
+                if (!player) return;
+                const center = player.x + player.width / 2;
+                const base = { y: player.y - 14, width: 6, height: 18, speed: 520 };
+                if (tripleShotTime > 0) {
+                    bullets.push({ ...base, x: center - 3, vx: 0 });
+                    bullets.push({ ...base, x: center - 12, vx: -75 });
+                    bullets.push({ ...base, x: center + 6, vx: 75 });
+                } else {
+                    bullets.push({ ...base, x: center - 3, vx: 0 });
+                }
+                sound('shoot');
+            }
+            function updateShooting(dt) {
+                shootingTimer += dt;
+                if (shootingTimer >= .30) { shootingTimer -= .30; firePlayer(); }
+            }
+            function updateBullets(dt) {
+                for (let i = bullets.length - 1; i >= 0; i--) {
+                    const b = bullets[i];
+                    b.x += (b.vx || 0) * dt;
+                    // Corrected after the deliberate debugging exercise.
+                    b.y -= b.speed * dt;
+
+                    if (b.y + b.height < 0 || b.x + b.width < 0 || b.x > canvas.width) bullets.splice(i, 1);
+                }
+            }
+
+
+        </script>
+
+        <!--
+        COPILOT DEBUGGING QUESTION:
+
+        I deliberately changed the player-bullet update in task2.html and now
+        the shots move the wrong way. Here is the changed line:
+
+        b.y += b.speed * dt;
+
+        Explain the mistake using canvas coordinates, show the correction,
+        and tell me how to test it.
+
+
+        COPILOT ANSWER:
+
+        The mistake in the line b.y += b.speed * dt; is that it causes the
+        bullets to move downward instead of upward. In canvas coordinates,
+        the origin (0,0) is at the top-left corner, and the y-coordinate
+        increases as you move down the canvas. Therefore, to make the bullets
+        move upward, you need to decrease the y-coordinate.
+
+        The correct line should be:
+
+        b.y -= b.speed * dt; // Move bullets upward
+
+        To test the correction, run the game and observe the bullets when the
+        player fires. If the bullets move upward from the spaceship, the
+        correction is successful. If they still move downward, double-check
+        that the line was replaced correctly and that no conflicting code is
+        affecting bullet movement.
+        -->
+
+        <!--Create an enemy wave system. Normal waves should contain rows of enemies arranged across the upper part of the canvas. Start with approximately 2 rows and 7 enemies per row. Increase the number of rows gradually as the wave number increases, with a maximum of 4 rows.-->
+        <!--Make normal enemies move horizontally back and forth using a smooth sine-wave motion while also slowly descending toward the player. Increase their downward movement speed gradually as the wave number increases. Apply the selected difficulty setting to enemy descent speed.-->
+        <!--Improve the existing escaped-enemy behavior. When a normal enemy moves completely below the bottom of the canvas, remove that enemy and subtract exactly one hull point. Display the temporary status message "Enemy escaped · Hull -1". Do not subtract hull repeatedly for the same enemy. If hull reaches zero, call the existing endGame() function. Edit the existing updateEnemies() function instead of creating another updateEnemies() function.-->
+        <!--Improve the existing player-bullet versus enemy collision system. Store hp, armored, and points directly on each enemy when the enemy is created. Regular enemies should have 1 hp and award 100 points. Starting around wave 3, some enemies should be armored, have 2 hp, and award 150 points. Do not randomly decide whether an enemy is armored inside drawEnemies() because that changes every frame. Use enemy.armored when drawing the enemy. When a player bullet hits, remove only that bullet, reduce the enemy hp by one, and remove the enemy only when hp reaches zero. Edit the existing spawnEnemyWave(), drawEnemies(), and checkCollisions() functions instead of creating duplicate functions.-->
+        <!--Add an enemy shooting system. Regularly select a random living enemy and make that enemy fire a bullet downward. Store enemy bullets in a separate enemyBullets array. Enemy bullets must move downward, be visible on screen, and be removed after leaving the canvas.-->
+        <!--Make enemy firing frequency depend on difficulty and wave number. Easy should fire more slowly, Normal at a balanced rate, and Hard more frequently. As the wave number increases, gradually reduce the delay between enemy shots. Do not allow the delay to become faster than a reasonable minimum.-->
+        <!--Review the enemy shooting system. Make sure normal enemies actually shoot downward at the player. Select only enemies whose hit points are greater than zero. Make sure enemy bullets are added to enemyBullets, updated every frame, drawn every frame, checked against the player for collision, and removed when they leave the canvas.-->
+        <script>
+            'use strict';
+
+            // ---------- Normal enemies ----------
+            function spawnEnemyWave() {
+                enemies = [];
+                const rows = Math.min(2 + Math.floor((wave - 1) / 3), 4);
+                const cols = 7;
+                const w = 38, h = 34;
+                const totalW = cols * w;
+                const gap = (canvas.width - totalW) / (cols + 1);
+                for (let row = 0; row < rows; row++) {
+                    for (let col = 0; col < cols; col++) {
+                        const armored = wave >= 3 && Math.random() < .30;
+                        const baseX = gap + col * (w + gap);
+                        enemies.push({
+                            x: baseX, baseX, y: 48 + row * 58, width: w, height: h,
+                            armored, hp: armored ? 2 : 1, points: armored ? 150 : 100,
+                            phase: row * .5 + col * .35, alive: true
+                        });
+                    }
+                }
+            }
+            function updateEnemies(dt) {
+                for (let i = enemies.length - 1; i >= 0; i--) {
+                    const e = enemies[i];
+                    e.x = e.baseX + Math.sin(gameTime * 1.55 + e.phase) * 30;
+                    e.y += (15 + wave * 1.8) * currentSettings.enemySpeed * dt;
+                    if (overlaps(e, player)) {
+                        enemies.splice(i, 1);
+                        damagePlayer('Hull hit · Keep moving');
+                        continue;
+                    }
+                    if (e.y > canvas.height) {
+                        enemies.splice(i, 1);
+                        hull = Math.max(0, hull - 1);
+                        updateHUD();
+                        showStatus('Enemy escaped · Hull -1');
+                        if (hull <= 0) endGame();
+                    }
+                }
+            }
+            function getEnemyFireDelay() {
+                const base = 1.55 * currentSettings.fireDelayScale;
+                return Math.max(.50, base - (wave - 1) * .045);
+            }
+            function updateEnemyShooting(dt) {
+                if (!waveActive || enemies.length === 0) return;
+                enemyShootingTimer += dt;
+                const delay = getEnemyFireDelay();
+                if (enemyShootingTimer >= delay) {
+                    enemyShootingTimer = 0;
+                    const living = enemies.filter(e => e.hp > 0);
+                    if (!living.length) return;
+                    const e = living[Math.floor(Math.random() * living.length)];
+                    enemyBullets.push({ x: e.x + e.width / 2 - 3, y: e.y + e.height, width: 6, height: 16, speed: currentSettings.enemyBulletSpeed, vx: 0, fromBoss: false });
+                }
+            }
+
+
+        </script>
+
+        <!--Make every fifth wave a boss wave. Waves 5, 10, 15, 20 and so on must contain one boss only and must not also create normal enemy rows. Display "BOSS INCOMING" during the wave introduction before a boss wave. Modify the existing wave creation logic instead of creating a separate competing wave system.-->
+        <!--Add one boss object to the existing game state. Draw the boss entirely with Canvas shapes using dark purple, red, and gold details. Make it much larger than normal enemies. Set boss maximum health to 30 plus the current wave multiplied by 4. Draw a boss health bar above the boss. Player bullets must reduce boss hp. Do not store the boss inside the normal enemies array unless necessary. Do not create another game loop.-->
+        <!--Add boss movement to the existing update system. Make the boss move smoothly left and right near the upper portion of the canvas using sine-wave movement, with a small vertical floating movement. Keep the boss inside the canvas. Update the existing boss object every frame from the current active game loop rather than creating a separate interval or loop.-->
+        <!--Add boss shooting using the existing enemyBullets array. At a controlled interval, the boss should fire five bullets downward in a spread. Give the bullets horizontal velocities approximately -125, -62, 0, 62, and 125 while also moving downward. Add vx to enemy bullet objects and update updateEnemyBullets(dt) so bullets can move both horizontally and vertically. Do not create another enemyBullets array or another updateEnemyBullets() function.-->
+        <!--Add correct boss defeat behavior. When boss hp reaches zero, create a large particle explosion, award 1000 points, clear remaining boss bullets if appropriate, set the boss to null, and start the next wave after a short transition. The wave number must increase exactly once. Never start the next wave while the boss is still alive. Modify the existing wave-transition logic instead of creating another wave counter.-->
+        <script>
+            'use strict';
+
+            // ---------- Boss ----------
+            function createBoss() {
+                const maxHp = 30 + wave * 4;
+                boss = { x: canvas.width / 2 - 95, y: 54, width: 190, height: 72, hp: maxHp, maxHp, t: 0 };
+            }
+            function updateBoss(dt) {
+                if (!boss) return;
+                boss.t += dt;
+                boss.x = canvas.width / 2 - boss.width / 2 + Math.sin(boss.t * 1.15) * 230;
+                boss.y = 54 + Math.sin(boss.t * 1.9) * 10;
+                boss.x = clamp(boss.x, 8, canvas.width - boss.width - 8);
+                bossShootingTimer += dt;
+                const delay = Math.max(.65, 1.5 * currentSettings.fireDelayScale - wave * .025);
+                if (bossShootingTimer >= delay) {
+                    bossShootingTimer = 0;
+                    const vxs = [-125, -62, 0, 62, 125];
+                    for (const vx of vxs) enemyBullets.push({ x: boss.x + boss.width / 2 - 4, y: boss.y + boss.height - 6, width: 8, height: 18, speed: currentSettings.enemyBulletSpeed + 25, vx, fromBoss: true });
+                }
+            }
+            function defeatBoss() {
+                if (!boss) return;
+                createExplosion(boss.x + boss.width / 2, boss.y + boss.height / 2, '#ffd56a', 48);
+                score += 1000;
+                kills++;
+                updateBest();
+                sound('boss');
+                spawnDrop(boss.x + boss.width / 2 - 12, boss.y + boss.height / 2, true);
+                boss = null;
+                enemyBullets = enemyBullets.filter(b => !b.fromBoss);
+                finishWave();
+            }
+
+
+        </script>
+
+        <!--Add collision detection between enemy bullets and the player's spaceship. When an enemy bullet hits the player, remove one hull point and destroy the bullet. Give the player about 1.2 seconds of temporary invincibility after being hit so multiple bullets cannot remove all hull points instantly. Make the player's ship flash while invincible.-->
+        <script>
+            'use strict';
+
+            // ---------- Enemy bullets and player damage ----------
+            function updateEnemyBullets(dt) {
+                for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                    const b = enemyBullets[i];
+                    b.x += (b.vx || 0) * dt;
+                    b.y += b.speed * dt;
+                    if (b.y > canvas.height + 30 || b.x < -40 || b.x > canvas.width + 40) enemyBullets.splice(i, 1);
+                }
+            }
+            function damagePlayer(message) {
+                if (!player || gameOver) return false;
+                if (shieldTime > 0 || invincible) return false;
+                hull = Math.max(0, hull - 1);
+                invincible = true;
+                invincibilityTimer = 0;
+                createExplosion(player.x + player.width / 2, player.y + player.height / 2, '#ff6e8a', 22);
+                updateHUD();
+                showStatus(message || 'Hull hit · Keep moving');
+                sound('damage');
+                if (hull <= 0) endGame();
+                return true;
+            }
+            function checkPlayerCollisions() {
+                if (!player || gameOver) return;
+                for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                    const b = enemyBullets[i];
+                    if (!overlaps(b, player)) continue;
+                    enemyBullets.splice(i, 1);
+                    if (shieldTime > 0) continue;
+                    if (!invincible) damagePlayer('Hull hit · Keep moving');
+                }
+            }
+            function updateInvincibility(dt) {
+                if (!invincible) return;
+                invincibilityTimer += dt;
+                if (invincibilityTimer >= invincibilityDuration) { invincible = false; invincibilityTimer = 0; }
+            }
+
+
+        </script>
+
+        <!--Add particle explosion effects using Canvas and JavaScript only. Create one particles array. When a normal or armored enemy is destroyed inside the existing checkCollisions() function, create a small burst of colored particles at the enemy's center. When the player is hit by an enemy bullet, create a slightly larger particle burst at the player's position. Add one createExplosion(x, y, color, amount) function, one updateParticles(dt) function, and one drawParticles() function. Particles should move outward, fade gradually, and be removed when fully transparent. Call updateParticles(dt) and drawParticles() from the existing active game loop. Do not create another gameLoop(), update(), draw(), checkCollisions(), or checkPlayerCollisions() function. Do not remove or change any existing prompt comments, enemy HP system, armored enemies, scoring, enemy shooting, automatic player shooting, difficulty settings, pause, restart, HUD, or 1.2-second invincibility system.-->
+        <script>
+            'use strict';
+
+            // ---------- Particles ----------
+            function createExplosion(x, y, color, amount = 14) {
+                if (prefersReducedMotion) return;
+                for (let i = 0; i < amount; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 120 + 35;
+                    particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 1, size: Math.random() * 3 + 1, color });
+                }
+            }
+            function updateParticles(dt) {
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= .985; p.vy *= .985; p.life -= dt * 1.7;
+                    if (p.life <= 0) particles.splice(i, 1);
+                }
+            }
+
+
+        </script>
+
+        <!--Add collectible power-up drops. Create one drops array. Approximately every fourth normal enemy kill should create one falling power-up. A defeated boss should also create a power-up. Each drop should fall slowly downward and disappear after leaving the canvas. Add updateDrops(dt) and drawDrops() and integrate both into the existing single game loop. Do not create another gameLoop().-->
+        <!--Add a Shield power-up represented by a mint-green square containing the letter S. When the player collects it, activate shieldTime for 6 seconds. Draw a circular mint-green shield around the player's spaceship while active. Enemy bullets that hit the shield should be removed without reducing hull. Integrate shield protection into the existing checkPlayerCollisions() function and preserve the current 1.2-second invincibility behavior.-->
+        <!--Add a Triple Shot power-up represented by a gold square containing the letter T. When collected, activate tripleShotTime for 8 seconds. The player already fires automatically, so modify the existing automatic shooting function: while Triple Shot is active, each automatic shot should create three player bullets instead of one, with one slightly left, one center, and one slightly right. Do not add Space-bar shooting again and do not create a second shooting timer.-->
+        <!--Add a Repair power-up represented by a pink or red square containing a + symbol. When collected, increase hull by one only if hull is below maxHull. Never allow hull to exceed maxHull. If hull is already full, award 100 points instead. Update the existing HUD immediately after collection.-->
+        <script>
+            'use strict';
+
+            // ---------- Drops / upgrades ----------
+            function chooseDropType() {
+                const r = Math.random();
+                return r < .34 ? 'shield' : r < .68 ? 'triple' : 'repair';
+            }
+            function spawnDrop(x, y, force = false) {
+                if (!force) {
+                    dropCounter++;
+                    if (dropCounter % 4 !== 0) return;
+                }
+                drops.push({ x, y, width: 26, height: 26, type: chooseDropType(), speed: 85 });
+            }
+            function collectDrop(drop) {
+                sound('pickup');
+                if (drop.type === 'shield') { shieldTime = 6; showStatus('Shield online · 6 seconds'); }
+                else if (drop.type === 'triple') { tripleShotTime = 8; showStatus('Triple shot · 8 seconds'); }
+                else {
+                    if (hull < maxHull) { hull++; showStatus('Hull repaired · +1'); }
+                    else { score += 100; updateBest(); showStatus('Hull full · +100 points'); }
+                    updateHUD();
+                }
+                updateUpgradePanel();
+            }
+            function updateDrops(dt) {
+                for (let i = drops.length - 1; i >= 0; i--) {
+                    const d = drops[i];
+                    d.y += d.speed * dt;
+                    if (overlaps(d, player)) { collectDrop(d); drops.splice(i, 1); continue; }
+                    if (d.y > canvas.height + 30) drops.splice(i, 1);
+                }
+            }
+            function updateUpgradeTimers(dt) {
+                if (shieldTime > 0) shieldTime = Math.max(0, shieldTime - dt);
+                if (tripleShotTime > 0) tripleShotTime = Math.max(0, tripleShotTime - dt);
+                updateUpgradePanel();
+            }
+
+            // ---------- Player bullet collisions ----------
+            function checkCollisions() {
+                for (let b = bullets.length - 1; b >= 0; b--) {
+                    const bullet = bullets[b];
+                    let consumed = false;
+
+                    if (boss && overlaps(bullet, boss)) {
+                        bullets.splice(b, 1);
+                        boss.hp--;
+                        createExplosion(bullet.x, bullet.y, '#ffd56a', 5);
+                        consumed = true;
+                        if (boss.hp <= 0) defeatBoss();
+                    }
+                    if (consumed) continue;
+
+                    for (let e = enemies.length - 1; e >= 0; e--) {
+                        const enemy = enemies[e];
+                        if (!overlaps(bullet, enemy)) continue;
+                        bullets.splice(b, 1);
+                        enemy.hp--;
+                        if (enemy.hp <= 0) {
+                            enemies.splice(e, 1);
+                            score += enemy.points;
+                            kills++;
+                            createExplosion(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.armored ? '#ffd56a' : '#ff5b7d', enemy.armored ? 18 : 12);
+                            spawnDrop(enemy.x + enemy.width / 2 - 13, enemy.y + enemy.height / 2);
+                            sound('destroy');
+                            updateBest();
+                            updateHUD();
+                        } else {
+                            createExplosion(bullet.x, bullet.y, '#ffd56a', 5);
+                        }
+                        break;
+                    }
+                }
+            }
+
+
+        </script>
+
+        <!--Replace the current timer-based wave progression with proper enemy-clear wave progression. Remove the behavior that increases the wave automatically every 10 seconds. Remove random individual enemy spawning during normal waves. When Launch Mission starts, create wave 1 using spawnEnemyWave(). When every enemy in the current normal wave has been destroyed, award a wave-clear bonus equal to wave multiplied by 200, then increase wave by exactly one and start the next wave only once. Preserve the player's score and remaining hull. Use a waveTransition flag or timer so an empty enemies array cannot cause the wave number to increase every frame. Modify the existing update() and wave functions instead of creating duplicate update() or gameLoop() functions.-->
+        <!--Add a 1.5-second wave-introduction state before each new wave becomes active. Display centered Canvas text such as "WAVE 02" and "READY YOUR SHIP". During this short introduction, enemies and projectiles must not move or fire, but the player may still move left and right. After 1.5 seconds, begin the wave normally. Integrate this into the existing game-state and active game loop. Do not create another gameLoop().-->
+        <!--Review the wave progression carefully. Every fifth wave must contain ONLY the boss and should not also contain normal enemy rows. The next wave must begin only after the boss is completely destroyed. Normal waves must begin only after all normal enemies have been destroyed. Make sure each wave increases by exactly one and never skips or rapidly increases.-->
+        <script>
+            'use strict';
+
+            // ---------- Wave progression ----------
+            function beginWave() {
+                waveActive = false;
+                waveCleared = false;
+                waveIntroTimer = 1.5;
+                waveTransitionTimer = 0;
+                enemies = [];
+                boss = null;
+                enemyBullets = [];
+                enemyShootingTimer = 0;
+                bossShootingTimer = 0;
+                updateHUD();
+            }
+            function activateWave() {
+                waveActive = true;
+                if (wave % 5 === 0) createBoss(); else spawnEnemyWave();
+            }
+            function finishWave() {
+                if (waveCleared || gameOver) return;
+                waveCleared = true;
+                waveActive = false;
+                const bonus = wave * 200;
+                score += bonus;
+                updateBest();
+                updateHUD();
+                showStatus('Wave cleared · +' + bonus);
+                waveTransitionTimer = 1.0;
+            }
+            function updateWaveState(dt) {
+                if (waveIntroTimer > 0) {
+                    waveIntroTimer -= dt;
+                    if (waveIntroTimer <= 0) activateWave();
+                    return;
+                }
+                if (waveTransitionTimer > 0) {
+                    waveTransitionTimer -= dt;
+                    if (waveTransitionTimer <= 0) { wave++; beginWave(); }
+                    return;
+                }
+                if (!waveActive || waveCleared) return;
+                if (wave % 5 === 0) { if (!boss) finishWave(); }
+                else if (enemies.length === 0) finishWave();
+            }
+
+
+        </script>
+
+        <!--Create the player's spaceship near the bottom center of the canvas. Draw the spaceship entirely with Canvas shapes instead of images. Make it look like a futuristic triangular spacecraft using mint green, white, dark blue and a small gold engine flame. Keep the player inside the canvas at all times.-->
+        <!--Draw enemy ships using Canvas shapes instead of images. Normal enemies should look like small red or pink alien ships. Add dark eye or window details. Beginning around wave 3, make some enemies armored with 2 hit points and give armored enemies a gold appearance or gold border.-->
+        <!--Draw a subtle dashed horizontal line close to the bottom of the canvas and label it "DEFENSE PERIMETER". Keep it behind the player and projectiles so it looks like part of the game's futuristic interface.-->
+        <script>
+            'use strict';
+
+            // ---------- Drawing ----------
+            function drawBackground() {
+                const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                g.addColorStop(0, '#061326'); g.addColorStop(.6, '#020a16'); g.addColorStop(1, '#01040a');
+                ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#d9f7ff';
+                for (const s of stars) { ctx.globalAlpha = .35 + s.size / 3; ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill(); }
+                ctx.globalAlpha = 1;
+                ctx.strokeStyle = 'rgba(101,242,208,.09)'; ctx.lineWidth = 1;
+                for (let r = 42; r <= 130; r += 42) { ctx.beginPath(); ctx.arc(canvas.width - 95, 95, r, 0, Math.PI * 2); ctx.stroke(); }
+            }
+            function drawDefensePerimeter() {
+                ctx.save(); ctx.setLineDash([8, 8]); ctx.strokeStyle = 'rgba(101,242,208,.30)'; ctx.beginPath(); ctx.moveTo(10, canvas.height - 82); ctx.lineTo(canvas.width - 10, canvas.height - 82); ctx.stroke(); ctx.setLineDash([]);
+                ctx.fillStyle = 'rgba(101,242,208,.5)'; ctx.font = '11px Arial'; ctx.fillText('DEFENSE PERIMETER', 16, canvas.height - 89); ctx.restore();
+            }
+            function drawPlayer() {
+                if (!player) return;
+                if (invincible && Math.floor(invincibilityTimer * 12) % 2 === 0) return;
+                ctx.save();
+                ctx.shadowBlur = 14; ctx.shadowColor = '#65f2d0';
+                ctx.fillStyle = '#0d243d'; ctx.beginPath(); ctx.moveTo(player.x + player.width/2, player.y); ctx.lineTo(player.x, player.y + player.height); ctx.lineTo(player.x + player.width/2, player.y + player.height - 12); ctx.lineTo(player.x + player.width, player.y + player.height); ctx.closePath(); ctx.fill();
+                ctx.fillStyle = '#65f2d0'; ctx.beginPath(); ctx.moveTo(player.x + player.width/2, player.y + 2); ctx.lineTo(player.x + 10, player.y + player.height - 6); ctx.lineTo(player.x + player.width - 10, player.y + player.height - 6); ctx.closePath(); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(player.x + player.width/2, player.y + 19, 6, 9, 0, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#ffd56a'; ctx.beginPath(); ctx.moveTo(player.x + player.width/2 - 5, player.y + player.height - 4); ctx.lineTo(player.x + player.width/2 + 5, player.y + player.height - 4); ctx.lineTo(player.x + player.width/2, player.y + player.height + 9 + Math.sin(gameTime*20)*3); ctx.closePath(); ctx.fill();
+                if (shieldTime > 0) { ctx.shadowBlur = 10; ctx.shadowColor = '#65f2d0'; ctx.strokeStyle = 'rgba(101,242,208,.8)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(player.x + player.width/2, player.y + player.height/2, 36, 0, Math.PI*2); ctx.stroke(); }
+                ctx.restore();
+            }
+            function drawBullets() {
+                ctx.save(); ctx.shadowBlur = 10; ctx.shadowColor = '#65f2d0'; ctx.fillStyle = '#65f2d0';
+                for (const b of bullets) ctx.fillRect(b.x, b.y, b.width, b.height);
+                ctx.restore();
+            }
+            function drawEnemies() {
+                for (const e of enemies) {
+                    ctx.save(); ctx.shadowBlur = e.armored ? 12 : 8; ctx.shadowColor = e.armored ? '#ffd56a' : '#ff5b7d'; ctx.fillStyle = e.armored ? '#c99b2f' : '#d83f62';
+                    ctx.beginPath(); ctx.moveTo(e.x + e.width/2, e.y); ctx.lineTo(e.x + e.width, e.y + e.height*.72); ctx.lineTo(e.x + e.width*.74, e.y + e.height); ctx.lineTo(e.x + e.width*.5, e.y + e.height*.78); ctx.lineTo(e.x + e.width*.26, e.y + e.height); ctx.lineTo(e.x, e.y + e.height*.72); ctx.closePath(); ctx.fill();
+                    if (e.armored) { ctx.strokeStyle = '#ffeaa0'; ctx.lineWidth = 2; ctx.stroke(); }
+                    ctx.fillStyle = '#08111d'; ctx.beginPath(); ctx.ellipse(e.x + e.width/2, e.y + e.height*.45, 6, 4, 0, 0, Math.PI*2); ctx.fill(); ctx.restore();
+                }
+            }
+            function drawBoss() {
+                if (!boss) return;
+                ctx.save(); ctx.shadowBlur = 18; ctx.shadowColor = '#d65cff'; ctx.fillStyle = '#4b173f'; ctx.fillRect(boss.x + 35, boss.y + 10, boss.width - 70, boss.height - 15);
+                ctx.fillStyle = '#8e274e'; ctx.beginPath(); ctx.moveTo(boss.x, boss.y + boss.height*.55); ctx.lineTo(boss.x + 52, boss.y + 8); ctx.lineTo(boss.x + boss.width/2, boss.y); ctx.lineTo(boss.x + boss.width - 52, boss.y + 8); ctx.lineTo(boss.x + boss.width, boss.y + boss.height*.55); ctx.lineTo(boss.x + boss.width - 38, boss.y + boss.height); ctx.lineTo(boss.x + 38, boss.y + boss.height); ctx.closePath(); ctx.fill();
+                ctx.fillStyle = '#ffd56a'; for (const ox of [50, boss.width/2, boss.width-50]) { ctx.beginPath(); ctx.arc(boss.x + ox, boss.y + boss.height*.55, 7, 0, Math.PI*2); ctx.fill(); }
+                const pct = clamp(boss.hp / boss.maxHp, 0, 1); ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(boss.x, boss.y - 15, boss.width, 8); ctx.fillStyle = '#ff5b7d'; ctx.fillRect(boss.x, boss.y - 15, boss.width * pct, 8); ctx.strokeStyle = '#fff'; ctx.strokeRect(boss.x, boss.y - 15, boss.width, 8); ctx.restore();
+            }
+            function drawEnemyBullets() {
+                ctx.save(); ctx.shadowBlur = 8; ctx.shadowColor = '#ff4f61'; ctx.fillStyle = '#ff4f61';
+                for (const b of enemyBullets) ctx.fillRect(b.x, b.y, b.width, b.height);
+                ctx.restore();
+            }
+            function drawDrops() {
+                for (const d of drops) {
+                    const color = d.type === 'shield' ? '#65f2d0' : d.type === 'triple' ? '#ffd56a' : '#ff6e8a';
+                    const label = d.type === 'shield' ? 'S' : d.type === 'triple' ? 'T' : '+';
+                    ctx.save(); ctx.shadowBlur = 12; ctx.shadowColor = color; ctx.fillStyle = 'rgba(7,17,31,.92)'; ctx.fillRect(d.x, d.y, d.width, d.height); ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.strokeRect(d.x, d.y, d.width, d.height); ctx.fillStyle = color; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, d.x + d.width/2, d.y + d.height/2 + 1); ctx.restore();
+                }
+            }
+            function drawParticles() {
+                for (const p of particles) { ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.size, p.size); }
+                ctx.globalAlpha = 1;
+            }
+            function drawWaveBanner() {
+                if (waveIntroTimer <= 0) return;
+                ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, canvas.height/2 - 66, canvas.width, 120); ctx.fillStyle = wave % 5 === 0 ? '#ff6e8a' : '#65f2d0'; ctx.font = 'bold 38px Arial'; ctx.fillText(wave % 5 === 0 ? 'BOSS INCOMING' : 'WAVE ' + String(wave).padStart(2,'0'), canvas.width/2, canvas.height/2 - 8); ctx.fillStyle = '#fff'; ctx.font = '17px Arial'; ctx.fillText(wave % 5 === 0 ? 'HOLD THE LINE' : 'READY YOUR SHIP', canvas.width/2, canvas.height/2 + 28); ctx.restore();
+            }
+            function draw() {
+                drawBackground();
+                drawDefensePerimeter();
+                drawDrops();
+                drawEnemies();
+                drawBoss();
+                drawBullets();
+                drawEnemyBullets();
+                drawPlayer();
+                drawParticles();
+                drawWaveBanner();
+            }
+
+            // ---------- Update ----------
+            function update(dt) {
+                gameTime += dt;
+                updateStars(dt);
+                updatePlayer(dt);
+                updateWaveState(dt);
+                updateParticles(dt);
+
+                if (waveIntroTimer > 0 || waveTransitionTimer > 0 || !waveActive) return;
+
+                updateShooting(dt);
+                updateBullets(dt);
+                if (boss) updateBoss(dt); else { updateEnemies(dt); updateEnemyShooting(dt); }
+                updateEnemyBullets(dt);
+                updateDrops(dt);
+                updateUpgradeTimers(dt);
+                checkCollisions();
+                checkPlayerCollisions();
+                updateInvincibility(dt);
+            }
+
+            // ---------- Pause / game over ----------
+            function setPaused(value) {
+                if (!gameStarted || gameOver) return;
+                gamePaused = value;
+                keys.left = keys.right = false;
+                pauseOverlay.classList.toggle('hidden', !gamePaused);
+                pauseOverlay.setAttribute('aria-hidden', String(!gamePaused));
+                pauseButton.textContent = gamePaused ? 'Resume' : 'Pause';
+                statusMessage.textContent = gamePaused ? 'Game Paused' : currentSettings.name + ' Patrol Running';
+                if (!gamePaused) lastTime = performance.now();
+            }
+            function togglePause() { setPaused(!gamePaused); }
+            function endGame() {
+                if (gameOver) return;
+                gameOver = true; gameRunning = false; gamePaused = false; keys.left = keys.right = false;
+                updateBest(); updateHUD(); sound('gameover');
+                finalStats.innerHTML = 'Score: <strong>' + formatScore(score) + '</strong><br>Wave reached: <strong>' + String(wave).padStart(2,'0') + '</strong><br>Enemies destroyed: <strong>' + kills + '</strong>';
+                pauseOverlay.classList.add('hidden');
+                gameOverOverlay.classList.remove('hidden');
+                gameOverOverlay.setAttribute('aria-hidden', 'false');
+                pauseButton.disabled = true;
+                statusMessage.textContent = 'Game Over';
+            }
+            function returnToMenu() {
+                gameStarted = false; gameRunning = false; gamePaused = false; gameOver = false;
+                keys.left = keys.right = false;
+                bullets = []; enemies = []; enemyBullets = []; drops = []; particles = []; boss = null; player = null;
+                startOverlay.classList.remove('hidden');
+                pauseOverlay.classList.add('hidden');
+                gameOverOverlay.classList.add('hidden');
+                gameOverOverlay.setAttribute('aria-hidden','true');
+                difficultySelect.disabled = false;
+                pauseButton.disabled = true; restartButton.disabled = true; pauseButton.textContent = 'Pause';
+                statusMessage.textContent = 'Awaiting Launch';
+                currentDifficulty = difficultySelect.value; currentSettings = SETTINGS[currentDifficulty]; bestScore = loadBest(currentDifficulty); maxHull = currentSettings.hull; hull = maxHull; wave = 1; score = 0; updateHUD(); updateUpgradePanel();
+                initStars(); draw();
+            }
+
+
+        </script>
+
+        <!--Allow the player to click or touch inside the canvas and drag horizontally to move the spaceship. Firing must remain automatic and must not depend on the pointer being held. Use pointer events so this works with a mouse and touch screen.-->
+        <script>
+            'use strict';
+
+            // ---------- Input ----------
+            function handleKeyDown(e) {
+                const key = e.key.toLowerCase();
+                if (key === 'p' || e.key === 'Escape') { if (gameStarted && !gameOver) { e.preventDefault(); togglePause(); } return; }
+                if (!gameStarted || gamePaused || gameOver) return;
+                if (e.key === 'ArrowLeft' || key === 'a') { keys.left = true; e.preventDefault(); }
+                if (e.key === 'ArrowRight' || key === 'd') { keys.right = true; e.preventDefault(); }
+            }
+            function handleKeyUp(e) {
+                const key = e.key.toLowerCase();
+                if (e.key === 'ArrowLeft' || key === 'a') keys.left = false;
+                if (e.key === 'ArrowRight' || key === 'd') keys.right = false;
+            }
+            function bindHoldButton(button, direction) {
+                const down = e => { e.preventDefault(); if (!gamePaused && gameStarted && !gameOver) keys[direction] = true; };
+                const up = e => { e.preventDefault(); keys[direction] = false; };
+                button.addEventListener('pointerdown', down);
+                button.addEventListener('pointerup', up);
+                button.addEventListener('pointercancel', up);
+                button.addEventListener('pointerleave', up);
+            }
+            function movePlayerToPointer(e) {
+                if (!pointerDragging || !gameStarted || gamePaused || gameOver || !player) return;
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+                player.x = clamp(x - player.width / 2, 0, canvas.width - player.width);
+            }
+
+
+        </script>
+
+        <!--Automatically pause the game if the browser window loses focus or if the player switches to another browser tab. Clear any currently held movement keys when this happens so the spaceship does not continue moving after returning.-->
+        <script>
+            'use strict';
+
+            // ---------- Events ----------
+            difficultySelect.addEventListener('change', () => {
+                currentDifficulty = difficultySelect.value;
+                currentSettings = SETTINGS[currentDifficulty];
+                difficultyDescription.textContent = currentSettings.description;
+                bestScore = loadBest(currentDifficulty);
+                maxHull = currentSettings.hull;
+                if (!gameStarted) hull = maxHull;
+                updateHUD();
+            });
+            launchButton.addEventListener('click', async () => {
+                if (gameStarted) return;
+                currentDifficulty = difficultySelect.value;
+                currentSettings = SETTINGS[currentDifficulty];
+                difficultySelect.disabled = true;
+                startOverlay.classList.add('hidden');
+                gameOverOverlay.classList.add('hidden');
+                gameStarted = true;
+                await ensureAudio();
+                sound('launch');
+                resetRun();
+                canvas.focus();
+                if (!loopStarted) { loopStarted = true; lastTime = performance.now(); requestAnimationFrame(gameLoop); }
+            });
+            pauseButton.addEventListener('click', togglePause);
+            resumeButton.addEventListener('click', () => setPaused(false));
+            restartButton.addEventListener('click', () => { if (!gameStarted) return; gameOverOverlay.classList.add('hidden'); resetRun(); });
+            flyAgainButton.addEventListener('click', () => { gameOverOverlay.classList.add('hidden'); resetRun(); });
+            returnMenuButton.addEventListener('click', returnToMenu);
+            soundButton.addEventListener('click', async () => {
+                soundEnabled = !soundEnabled;
+                soundButton.textContent = 'Sound: ' + (soundEnabled ? 'on' : 'off');
+                if (soundEnabled) { const ok = await ensureAudio(); if (ok) tone(440, .08, 'triangle', .03); }
+            });
+            testSoundButton.addEventListener('click', async () => {
+                const ok = await ensureAudio();
+                if (!ok) return;
+                soundEnabled = true; soundButton.textContent = 'Sound: on';
+                tone(330,.08,'triangle',.035,0); tone(440,.08,'triangle',.035,.1); tone(660,.11,'triangle',.035,.2);
+                audioStatus.textContent = 'Sound test started successfully.';
+                setTimeout(() => { if (audioStatus.textContent.includes('successfully')) audioStatus.textContent = ''; }, 2200);
+            });
+            document.addEventListener('keydown', handleKeyDown);
+            document.addEventListener('keyup', handleKeyUp);
+            window.addEventListener('blur', () => { keys.left = keys.right = false; if (gameStarted && !gameOver && !gamePaused) setPaused(true); });
+            document.addEventListener('visibilitychange', () => { if (document.hidden) { keys.left = keys.right = false; if (gameStarted && !gameOver && !gamePaused) setPaused(true); } });
+            bindHoldButton(leftButton, 'left');
+            bindHoldButton(rightButton, 'right');
+            canvas.addEventListener('pointerdown', e => { pointerDragging = true; try { canvas.setPointerCapture(e.pointerId); } catch (_) {} movePlayerToPointer(e); });
+            canvas.addEventListener('pointermove', movePlayerToPointer);
+            canvas.addEventListener('pointerup', () => { pointerDragging = false; });
+            canvas.addEventListener('pointercancel', () => { pointerDragging = false; });
+
+
+        </script>
+
+        <!--Use requestAnimationFrame for one and only one recurring game loop. Use delta time for movement so gameplay speed remains consistent on different computers. Cap delta time so returning to the browser after a slow or inactive frame does not cause enemies or bullets to jump large distances.-->
+        <!--Review the entire game for JavaScript errors, duplicate game loops, duplicated event listeners, duplicate function definitions, broken level progression, broken boss progression, invisible enemy bullets, incorrect collision detection, power-ups that do not appear, sound errors, restart problems, pause problems and localStorage errors. Fix all problems without removing any existing features or prompt comments.-->
+        <!--Before finishing, verify that the game has all of these features: start screen, responsive interface, difficulty selector, Score, Best, Wave and Hull HUD, smooth A/D and Arrow movement, automatic player shooting, enemy shooting, enemy bullets, collision detection, invincibility after being hit, waves, boss every fifth wave, boss health bar, boss five-shot spread, Shield power-up, Triple Shot power-up, Repair power-up, particle explosions, pause/resume, restart, game-over screen, saved high scores, Web Audio sound effects, Sound button, Test Sound button, touch controls, pointer controls, responsive design and one requestAnimationFrame loop. Do not remove working features while fixing another feature.-->
+        <!--Clean and organize the final task2.html. Keep everything in one file. Use clear comments to separate HTML interface, CSS styling, game state, audio, player controls, waves, enemy shooting, collisions, power-ups, drawing, event listeners and the animation loop. Remove duplicate or obsolete functions. Do not simplify the game or remove any features. Make sure task2.html runs by opening it directly in Firefox or Chrome.-->
+        <script>
+            'use strict';
+
+            // ---------- Single animation loop ----------
+            function gameLoop(timestamp) {
+                const dt = Math.min((timestamp - lastTime) / 1000, 0.033);
+                lastTime = timestamp;
+                if (gameStarted && gameRunning && !gamePaused && !gameOver) update(dt);
+                draw();
+                requestAnimationFrame(gameLoop);
+            }
+
+            // ---------- Initial static screen ----------
+            currentDifficulty = difficultySelect.value;
+            currentSettings = SETTINGS[currentDifficulty];
+            bestScore = loadBest(currentDifficulty);
+            maxHull = currentSettings.hull;
+            hull = maxHull;
+            initStars();
+            updateHUD();
+            updateUpgradePanel();
+            draw();
+        </script>
+    </body>
+</html>
